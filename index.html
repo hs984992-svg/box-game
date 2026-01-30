@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>صندوق المفاجآت - الإصدار الاحترافي</title>
+    
+    <!-- Fonts & Metadata -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Scripts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --accent-yellow: #fbbf24;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .bg-mesh {
+            background-color: #0a0a0a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(251, 191, 36, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(239, 68, 68, 0.08) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .animate-shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .pulse-hover:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 30px rgba(251, 191, 36, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-mesh">
+    <div id="root"></div>
+
+    <script type="babel">
+        const { useState, useEffect, useCallback, useRef } = React;
+
+        // --- Constants ---
+        const LEVELS_MAP = {
+            easy: [
+                { id: 1, boxesCount: 2, safeCount: 1, gridCols: 'grid-cols-2' },
+                { id: 2, boxesCount: 3, safeCount: 2, gridCols: 'grid-cols-3' },
+                { id: 3, boxesCount: 4, safeCount: 2, gridCols: 'grid-cols-2' },
+            ],
+            medium: [
+                { id: 1, boxesCount: 2, safeCount: 1, gridCols: 'grid-cols-2' },
+                { id: 2, boxesCount: 4, safeCount: 2, gridCols: 'grid-cols-2' },
+                { id: 3, boxesCount: 6, safeCount: 2, gridCols: 'grid-cols-2 md:grid-cols-3' },
+                { id: 4, boxesCount: 9, safeCount: 3, gridCols: 'grid-cols-3' },
+                { id: 5, boxesCount: 12, safeCount: 3, gridCols: 'grid-cols-3 md:grid-cols-4' },
+            ],
+            hard: [
+                { id: 1, boxesCount: 3, safeCount: 1, gridCols: 'grid-cols-3' },
+                { id: 2, boxesCount: 5, safeCount: 1, gridCols: 'grid-cols-3 md:grid-cols-5' },
+                { id: 3, boxesCount: 6, safeCount: 2, gridCols: 'grid-cols-3' },
+                { id: 4, boxesCount: 8, safeCount: 2, gridCols: 'grid-cols-4' },
+                { id: 5, boxesCount: 10, safeCount: 2, gridCols: 'grid-cols-5' },
+            ],
+            insane: Array.from({ length: 10 }, (_, i) => ({
+                id: i + 1,
+                boxesCount: Math.min(8 + i * 2, 30),
+                safeCount: Math.max(1, Math.floor((8+i*2) * 0.2)),
+                gridCols: 'grid-cols-4 md:grid-cols-6'
+            }))
+        };
+
+        const GRAND_PRIZES = [
+            { title: "حق الفيتو", description: "أنت تختار مكان الطلعة القادمة، والكل يوافق غصباً عنه." },
+            { title: "حصانة القطة", description: "حساب قهوتك أو عشائك اليوم على الشباب مجاناً." },
+            { title: "أمير القروب", description: "لك الحق في تغيير اسم وصورة القروب لمدة يوم كامل." },
+            { title: "راعي الريموت", description: "أنت تختار ماذا تشاهدون الآن، ولا أحد يحق له الاعتراض." },
+            { title: "إعفاء ملكي", description: "أنت معفى من صب القهوة أو أي خدمة يطلبها الشباب اليوم." },
+            { title: "الكلمة الأخيرة", description: "رأيك هو الفاصل في أي نقاش أو خلاف يحصل اليوم." }
+        ];
+
+        // --- Audio Context & Sounds ---
+        let audioCtx = null;
+        const getAudioCtx = () => {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return audioCtx;
+        };
+
+        const playSfx = (type) => {
+            try {
+                const ctx = getAudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                const now = ctx.currentTime;
+
+                if (type === 'win') {
+                    osc.frequency.setValueAtTime(880, now);
+                    osc.frequency.exponentialRampToValueAtTime(1760, now + 0.1);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(); osc.stop(now + 0.5);
+                } else if (type === 'lose') {
+                    osc.frequency.setValueAtTime(100, now);
+                    osc.frequency.linearRampToValueAtTime(40, now + 0.3);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(); osc.stop(now + 0.3);
+                } else if (type === 'click') {
+                    osc.frequency.setValueAtTime(600, now);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(); osc.stop(now + 0.05);
+                }
+            } catch (e) {}
+        };
+
+        // --- Icons Helper ---
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const LucideIcon = lucide.icons[name];
+            return LucideIcon ? <LucideIcon size={size} className={className} /> : null;
+        };
+
+        // --- Box Component ---
+        const Box = ({ index, isDead, isProceeding, isDefused, isXray, isSafe, isHint, disabled, onClick }) => {
+            const statusClass = isDead ? 'bg-red-600 animate-shake shadow-red-500/50' : 
+                                isProceeding ? 'bg-green-500 scale-95 shadow-green-500/50' :
+                                isDefused ? 'bg-gray-800 opacity-30 cursor-not-allowed' :
+                                isXray ? (isSafe ? 'bg-green-500/80 border-4 border-green-400' : 'bg-red-500/80 border-4 border-red-400') :
+                                isHint ? 'bg-red-900 border-4 border-red-500 animate-pulse' :
+                                disabled ? 'bg-gray-800 opacity-50' : 
+                                'bg-gradient-to-br from-purple-600 to-yellow-600 hover:scale-105 shadow-xl cursor-pointer';
+
+            return (
+                <button
+                    onClick={onClick}
+                    disabled={disabled || isDefused}
+                    className={`relative h-28 md:h-36 flex flex-col items-center justify-center rounded-2xl transition-all duration-500 transform shadow-lg outline-none focus-visible:ring-4 focus-visible:ring-yellow-400 ${statusClass}`}
+                    aria-label={`صندوق رقم ${index + 1} ${isHint ? 'لغم مؤكد' : ''} ${isXray ? (isSafe ? 'آمن' : 'لغم') : ''}`}
+                    aria-pressed={isProceeding}
+                >
+                    <div className="flex flex-col items-center gap-1" aria-hidden="true">
+                        {isDead ? <Icon name="ShieldAlert" size={40} /> : 
+                         isProceeding ? <Icon name="CheckCircle2" size={40} /> : 
+                         isDefused ? <Icon name="XCircle" size={40} className="text-gray-500" /> :
+                         isXray || isHint ? <Icon name="Eye" size={32} /> :
+                         <Icon name="Package" size={40} />}
+                        <span className="font-black text-lg">{index + 1}</span>
+                    </div>
+                </button>
+            );
+        };
+
+        // --- Main App ---
+        function App() {
+            const [gameState, setGameState] = useState('start');
+            const [difficulty, setDifficulty] = useState('medium');
+            const [currentLevelIdx, setCurrentLevelIdx] = useState(0);
+            const [safeIndices, setSafeIndices] = useState([]);
+            const [clickedIdx, setClickedIdx] = useState(null);
+            const [winStreak, setWinStreak] = useState(0);
+            const [history, setHistory] = useState([]);
+            const [reward, setReward] = useState(null);
+            const [announcement, setAnnouncement] = useState("");
+
+            // Lives / Power-ups
+            const [powerups, setPowerups] = useState({ defuse: true, shield: true, xray: true });
+            const [isShieldActive, setIsShieldActive] = useState(false);
+            const [defusedIndices, setDefusedIndices] = useState([]);
+            const [xrayIdx, setXrayIdx] = useState(null);
+            const [hintIdx, setHintIdx] = useState(null);
+
+            const levels = LEVELS_MAP[difficulty];
+            const currentLevel = levels[currentLevelIdx];
+
+            const requestFullscreen = () => {
+                const element = document.documentElement;
+                if (element.requestFullscreen) element.requestFullscreen();
+                else if (element.webkitRequestFullscreen) element.webkitRequestFullscreen();
+                else if (element.msRequestFullscreen) element.msRequestFullscreen();
+            };
+
+            const initLevel = useCallback((idx) => {
+                const level = levels[idx];
+                if (!level) return;
+                const indices = Array.from({ length: level.boxesCount }, (_, i) => i);
+                const shuffled = indices.sort(() => 0.5 - Math.random());
+                setSafeIndices(shuffled.slice(0, level.safeCount));
+                setClickedIdx(null);
+                setDefusedIndices([]);
+                setXrayIdx(null);
+                setHintIdx(null);
+                setAnnouncement(`المستوى ${idx + 1}. ابحث عن ${level.safeCount} صناديق آمنة.`);
+            }, [levels]);
+
+            useEffect(() => {
+                if (gameState === 'playing') initLevel(currentLevelIdx);
+            }, [gameState, currentLevelIdx, initLevel]);
+
+            const startGame = () => {
+                requestFullscreen();
+                playSfx('click');
+                setGameState('playing');
+                setCurrentLevelIdx(0);
+                setPowerups({ defuse: true, shield: true, xray: true });
+                setIsShieldActive(false);
+            };
+
+            const handleBoxClick = (idx) => {
+                if (clickedIdx !== null || gameState !== 'playing' || defusedIndices.includes(idx)) return;
+                setClickedIdx(idx);
+
+                if (safeIndices.includes(idx)) {
+                    playSfx('win');
+                    setAnnouncement("صندوق آمن! أحسنت.");
+                    if (currentLevelIdx < levels.length - 1) {
+                        setTimeout(() => setCurrentLevelIdx(prev => prev + 1), 1000);
+                    } else {
+                        const p = GRAND_PRIZES[Math.floor(Math.random() * GRAND_PRIZES.length)];
+                        const newReward = { ...p, timestamp: new Date().toLocaleTimeString('ar-SA') };
+                        setReward(newReward);
+                        setHistory(prev => [newReward, ...prev].slice(0, 10));
+                        setWinStreak(prev => prev + 1);
+                        setAnnouncement(`مبروك! ربحت ${newReward.title}`);
+                        setTimeout(() => setGameState('finished'), 1000);
+                    }
+                } else {
+                    if (isShieldActive) {
+                        setAnnouncement("الدرع حماك من اللغم!");
+                        setIsShieldActive(false);
+                        setClickedIdx(null);
+                    } else {
+                        playSfx('lose');
+                        setWinStreak(0);
+                        setAnnouncement("لغم! للأسف خسرت.");
+                        setTimeout(() => setGameState('lost'), 800);
+                    }
+                }
+            };
+
+            // Power-up logic
+            const useDefuse = () => {
+                if (!powerups.defuse || clickedIdx !== null) return;
+                setPowerups(p => ({ ...p, defuse: false }));
+                const mines = Array.from({ length: currentLevel.boxesCount }, (_, i) => i).filter(i => !safeIndices.includes(i));
+                setDefusedIndices(mines.sort(() => 0.5 - Math.random()).slice(0, Math.ceil(mines.length / 2)));
+                setAnnouncement("تم تعطيل نصف الألغام.");
+            };
+
+            const useXray = () => {
+                if (!powerups.xray || clickedIdx !== null) return;
+                setPowerups(p => ({ ...p, xray: false }));
+                const idx = Math.floor(Math.random() * currentLevel.boxesCount);
+                setXrayIdx(idx);
+                setAnnouncement("فحص الصندوق.. انظر إلى النتيجة.");
+                setTimeout(() => setXrayIdx(null), 2000);
+            };
+
+            const useShield = () => {
+                if (!powerups.shield || isShieldActive) return;
+                setPowerups(p => ({ ...p, shield: false }));
+                setIsShieldActive(true);
+                setAnnouncement("الدرع نشط الآن.");
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-8">
+                    {/* Screen Reader Announcements */}
+                    <div className="sr-only" aria-live="polite">{announcement}</div>
+
+                    {/* Win Streak */}
+                    {winStreak > 0 && (
+                        <div className="fixed top-6 right-6 flex items-center gap-2 bg-orange-500 text-black px-4 py-2 rounded-full font-black shadow-xl animate-bounce z-50">
+                            <Icon name="Flame" size={20} /> <span>{winStreak} انتصار متتالي</span>
+                        </div>
+                    )}
+
+                    {/* Header */}
+                    <div className="fixed bottom-6 left-6 flex items-center gap-3 px-8 py-3 glass-card rounded-full shadow-2xl z-50">
+                        <Icon name="Code" size={18} className="text-yellow-500" />
+                        <div className="flex flex-col items-start leading-none">
+                            <span className="text-[10px] text-gray-500 font-bold uppercase">المطور</span>
+                            <span className="text-white font-black text-sm">حسن سهلي</span>
+                        </div>
+                    </div>
+
+                    {/* Start Screen */}
+                    {gameState === 'start' && (
+                        <section className="glass-card w-full max-w-2xl p-10 rounded-[3rem] text-center animate-in fade-in zoom-in">
+                            <div className="mb-8 relative inline-block">
+                                <div className="bg-gradient-to-tr from-yellow-400 to-orange-500 p-6 rounded-3xl rotate-6 shadow-2xl">
+                                    <Icon name="Gift" size={64} className="text-black" />
+                                </div>
+                            </div>
+                            <h1 className="text-5xl md:text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500">صندوق المفاجآت</h1>
+                            <p className="text-gray-400 mb-10 italic">تحدي الذكاء والبحث عن الجوائز</p>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-10">
+                                {['easy', 'medium', 'hard', 'insane'].map(d => (
+                                    <button 
+                                        key={d} onClick={() => setDifficulty(d)}
+                                        className={`p-3 rounded-2xl border transition-all ${difficulty === d ? 'border-yellow-400 bg-yellow-400/10' : 'border-white/5 bg-white/5'}`}
+                                    >
+                                        <span className="text-xs font-bold uppercase">{d === 'easy' ? 'سهل' : d === 'medium' ? 'متوسط' : d === 'hard' ? 'صعب' : 'أسطوري'}</span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button onClick={startGame} className="w-full py-6 bg-white text-black text-2xl font-black rounded-3xl hover:bg-yellow-400 transition-all flex items-center justify-center gap-4 pulse-hover">
+                                <Icon name="PlayCircle" size={32} /> ابدأ التحدي
+                            </button>
+                        </section>
+                    )}
+
+                    {/* Playing Screen */}
+                    {gameState === 'playing' && (
+                        <section className="w-full max-w-4xl animate-in fade-in">
+                            <div className="glass-card p-6 rounded-[2.5rem] mb-8 flex flex-col md:flex-row items-center justify-between gap-6">
+                                <div className="text-right">
+                                    <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">المستوى {currentLevelIdx + 1}</span>
+                                    <h2 className="text-3xl font-black text-white">ابحث عن الصناديق الآمنة</h2>
+                                </div>
+
+                                <nav className="flex gap-2">
+                                    <button onClick={useDefuse} disabled={!powerups.defuse} className={`p-4 rounded-2xl border transition-all ${powerups.defuse ? 'border-cyan-500 text-cyan-400 bg-cyan-500/10' : 'opacity-20'}`} aria-label="تعطيل الألغام"><Icon name="Scan"/></button>
+                                    <button onClick={useShield} disabled={!powerups.shield || isShieldActive} className={`p-4 rounded-2xl border transition-all ${isShieldActive ? 'bg-green-500 text-black border-green-500' : powerups.shield ? 'border-yellow-500 text-yellow-400 bg-yellow-400/10' : 'opacity-20'}`} aria-label="درع حماية"><Icon name="Shield"/></button>
+                                    <button onClick={useXray} disabled={!powerups.xray} className={`p-4 rounded-2xl border transition-all ${powerups.xray ? 'border-orange-500 text-orange-400 bg-orange-500/10' : 'opacity-20'}`} aria-label="أشعة كاشفة"><Icon name="Eye"/></button>
+                                </nav>
+                                
+                                <div className="bg-white/5 px-6 py-2 rounded-full border border-white/10 text-xs font-black text-gray-400">
+                                    المطلوب: <span className="text-white">{currentLevel.safeCount}</span> صناديق
+                                </div>
+                            </div>
+
+                            <div className={`grid gap-4 w-full ${currentLevel.gridCols}`}>
+                                {Array.from({ length: currentLevel.boxesCount }).map((_, i) => (
+                                    <Box 
+                                        key={i} index={i}
+                                        isSafe={safeIndices.includes(i)}
+                                        isDead={clickedIdx === i && !safeIndices.includes(i)}
+                                        isProceeding={clickedIdx === i && safeIndices.includes(i)}
+                                        isDefused={defusedIndices.includes(i)}
+                                        isXray={xrayIdx === i}
+                                        isHint={hintIdx === i}
+                                        disabled={clickedIdx !== null}
+                                        onClick={() => handleBoxClick(i)}
+                                    />
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Lost Screen */}
+                    {gameState === 'lost' && (
+                        <section className="glass-card p-12 rounded-[3.5rem] text-center animate-in zoom-in border-red-500/30">
+                            <div className="h-24 w-24 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6"><Icon name="ShieldAlert" size={48}/></div>
+                            <h2 className="text-5xl font-black mb-4 text-red-500 uppercase">انفجار!</h2>
+                            <p className="text-xl text-gray-400 mb-8 italic">لقد وقعت في فخ أحد الألغام..</p>
+                            <button onClick={() => setGameState('start')} className="w-full py-5 bg-white text-black font-black text-xl rounded-2xl hover:bg-red-500 transition-all">العودة للرئيسية</button>
+                        </section>
+                    )}
+
+                    {/* Win Screen */}
+                    {gameState === 'finished' && reward && (
+                        <section className="glass-card p-12 rounded-[4rem] text-center animate-in zoom-in border-yellow-400/30">
+                            <div className="h-28 w-28 bg-yellow-400 text-black rounded-3xl flex items-center justify-center mx-auto mb-8 rotate-12 shadow-2xl"><Icon name="Trophy" size={56}/></div>
+                            <h2 className="text-6xl font-black mb-4 text-white uppercase tracking-tighter">أنت أسطورة!</h2>
+                            <div className="bg-white/5 p-8 rounded-3xl mb-8 border border-white/10">
+                                <p className="text-4xl font-black text-yellow-400 mb-2">{reward.title}</p>
+                                <p className="text-lg text-gray-300 italic">"{reward.description}"</p>
+                            </div>
+                            <button onClick={() => setGameState('start')} className="w-full py-5 bg-white text-black font-black text-xl rounded-2xl hover:bg-yellow-400 transition-all">العب مرة أخرى</button>
+                        </section>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
