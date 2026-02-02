@@ -3,19 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>صندوق المفاجآت - الإصدار الاحترافي</title>
+    <title>صندوق المفاجآت - الإصدار المطور</title>
     
-    <!-- Fonts & Metadata -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     
-    <!-- Scripts -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
 
     <style>
         :root {
@@ -44,14 +42,6 @@
             background-attachment: fixed;
         }
 
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-        }
-
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
@@ -75,7 +65,7 @@
     <div id="root"></div>
 
     <script type="babel">
-        const { useState, useEffect, useCallback, useRef } = React;
+        const { useState, useEffect, useCallback } = React;
 
         // --- Constants ---
         const LEVELS_MAP = {
@@ -154,7 +144,9 @@
 
         // --- Icons Helper ---
         const Icon = ({ name, size = 24, className = "" }) => {
-            const LucideIcon = lucide.icons[name];
+            // Check if lucide exists on window
+            if (!window.lucide || !window.lucide.icons) return null;
+            const LucideIcon = window.lucide.icons[name];
             return LucideIcon ? <LucideIcon size={size} className={className} /> : null;
         };
 
@@ -275,7 +267,6 @@
                 }
             };
 
-            // Power-up logic
             const useDefuse = () => {
                 if (!powerups.defuse || clickedIdx !== null) return;
                 setPowerups(p => ({ ...p, defuse: false }));
@@ -302,17 +293,14 @@
 
             return (
                 <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-8">
-                    {/* Screen Reader Announcements */}
                     <div className="sr-only" aria-live="polite">{announcement}</div>
 
-                    {/* Win Streak */}
                     {winStreak > 0 && (
                         <div className="fixed top-6 right-6 flex items-center gap-2 bg-orange-500 text-black px-4 py-2 rounded-full font-black shadow-xl animate-bounce z-50">
                             <Icon name="Flame" size={20} /> <span>{winStreak} انتصار متتالي</span>
                         </div>
                     )}
 
-                    {/* Header */}
                     <div className="fixed bottom-6 left-6 flex items-center gap-3 px-8 py-3 glass-card rounded-full shadow-2xl z-50">
                         <Icon name="Code" size={18} className="text-yellow-500" />
                         <div className="flex flex-col items-start leading-none">
@@ -321,7 +309,6 @@
                         </div>
                     </div>
 
-                    {/* Start Screen */}
                     {gameState === 'start' && (
                         <section className="glass-card w-full max-w-2xl p-10 rounded-[3rem] text-center animate-in fade-in zoom-in">
                             <div className="mb-8 relative inline-block">
@@ -349,7 +336,6 @@
                         </section>
                     )}
 
-                    {/* Playing Screen */}
                     {gameState === 'playing' && (
                         <section className="w-full max-w-4xl animate-in fade-in">
                             <div className="glass-card p-6 rounded-[2.5rem] mb-8 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -387,7 +373,6 @@
                         </section>
                     )}
 
-                    {/* Lost Screen */}
                     {gameState === 'lost' && (
                         <section className="glass-card p-12 rounded-[3.5rem] text-center animate-in zoom-in border-red-500/30">
                             <div className="h-24 w-24 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6"><Icon name="ShieldAlert" size={48}/></div>
@@ -397,7 +382,6 @@
                         </section>
                     )}
 
-                    {/* Win Screen */}
                     {gameState === 'finished' && reward && (
                         <section className="glass-card p-12 rounded-[4rem] text-center animate-in zoom-in border-yellow-400/30">
                             <div className="h-28 w-28 bg-yellow-400 text-black rounded-3xl flex items-center justify-center mx-auto mb-8 rotate-12 shadow-2xl"><Icon name="Trophy" size={56}/></div>
